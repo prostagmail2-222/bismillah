@@ -168,7 +168,6 @@ class SubscriptionMiddleware(BaseMiddleware):
         session: AsyncSession = data["session"]
         db_user: User = data.get("db_user")
 
-        # Admin va Ownerlar tekshirilmaydi, /start ham tekshirilmaydi
         if db_user is None or db_user.role in (UserRole.OWNER, UserRole.ADMIN):
             return await handler(event, data)
         
@@ -275,8 +274,9 @@ async def guide(message: Message):
 async def ai_stub(message: Message):
     await message.answer("🤖 <b>AI Yordamchi:</b>\n\nHozircha texnik xizmat ko'rsatilmoqda. Tez orada ishga tushadi! ⚡️")
 
+# BU YERDA XATOLIK TUZATILDI (settings -> user_settings)
 @router.message(F.text == "⚙️ Sozlamalar")
-async def settings(message: Message, db_user: User):
+async def user_settings(message: Message, db_user: User):
     await message.answer(f"⚙️ <b>Sozlamalar:</b>\n\n🆔 ID: <code>{db_user.telegram_id}</code>\n🎭 Rol: {db_user.role.value.upper()}\n🌐 Til: O'zbekcha 🇺🇿")
 
 @router.message(F.text == "ℹ️ Bot haqida")
@@ -440,8 +440,6 @@ async def post_text(message: Message, state: FSMContext, session: AsyncSession, 
     anime_id = data["post_anime_id"]
     await state.clear()
 
-    # Bu yerda postni kanalga yuborish logikasi bo'lishi mumkin.
-    # Hozircha shunchaki adminga tasdiq yuboramiz va guruhga tashlaymiz (namuna)
     await message.answer(
         f"✅ <b>Post muvaffaqiyatli tayyorlandi!</b>\n\n"
         f"🎬 Anime ID: {anime_id}\n"
@@ -533,7 +531,7 @@ bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTM
 dp = Dispatcher(storage=MemoryStorage())
 dp.update.outer_middleware(DBSessionMiddleware())
 dp.update.outer_middleware(UserMiddleware())
-dp.update.outer_middleware(SubscriptionMiddleware()) # Majburiy obuna ulandi
+dp.update.outer_middleware(SubscriptionMiddleware()) # Majburiy obuna
 dp.include_router(router)
 
 async def main():
