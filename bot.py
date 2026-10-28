@@ -18,10 +18,10 @@ from loguru import logger
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import BigInteger, Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, select, func
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, selectinload
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 # ═══════════════════════════════════════════════════════════════
-# 1. CONFIG & LOGGER
+# 1. CONFIG
 # ═══════════════════════════════════════════════════════════════
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
@@ -100,7 +100,11 @@ class MandatoryChannel(Base):
 # 3. FSM STATES
 # ═══════════════════════════════════════════════════════════════
 class AnimeStates(StatesGroup):
-    title, description, is_vip, ep_num, ep_file = State(), State(), State(), State(), State()
+    title = State()
+    description = State()
+    is_vip = State() # MUHIM: Tugma bosilganda shu holat tekshiriladi
+    ep_num = State()
+    ep_file = State()
 
 class ChannelStates(StatesGroup):
     waiting_channel = State()
@@ -109,7 +113,9 @@ class BroadcastStates(StatesGroup):
     waiting_message = State()
 
 class TariffStates(StatesGroup):
-    name, price, duration = State(), State(), State()
+    name = State()
+    price = State()
+    duration = State()
 
 class SearchStates(StatesGroup):
     waiting_name = State()
@@ -274,7 +280,6 @@ async def guide(message: Message):
 async def ai_stub(message: Message):
     await message.answer("🤖 <b>AI Yordamchi:</b>\n\nHozircha texnik xizmat ko'rsatilmoqda. Tez orada ishga tushadi! ⚡️")
 
-# BU YERDA XATOLIK TUZATILDI (settings -> user_settings)
 @router.message(F.text == "⚙️ Sozlamalar")
 async def user_settings(message: Message, db_user: User):
     await message.answer(f"⚙️ <b>Sozlamalar:</b>\n\n🆔 ID: <code>{db_user.telegram_id}</code>\n🎭 Rol: {db_user.role.value.upper()}\n🌐 Til: O'zbekcha 🇺🇿")
@@ -392,6 +397,7 @@ async def anime_desc(message: Message, state: FSMContext):
     kb = InlineKeyboardBuilder(); kb.button(text="🎬 Oddiy", callback_data="vip_0"); kb.button(text="💎 VIP", callback_data="vip_1")
     await message.answer("💎 VIP uchunmi?", reply_markup=kb.as_markup())
 
+# Tuzatilgan qism: FSM holatini tekshiruvchi filtr qo'shildi, xatoliklar oldi olindi
 @router.callback_query(F.data.startswith("vip_"), AnimeStates.is_vip)
 async def anime_vip_choice(call: CallbackQuery, state: FSMContext, session: AsyncSession):
     is_vip = call.data == "vip_1"
@@ -531,7 +537,7 @@ bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTM
 dp = Dispatcher(storage=MemoryStorage())
 dp.update.outer_middleware(DBSessionMiddleware())
 dp.update.outer_middleware(UserMiddleware())
-dp.update.outer_middleware(SubscriptionMiddleware()) # Majburiy obuna
+dp.update.outer_middleware(SubscriptionMiddleware())
 dp.include_router(router)
 
 async def main():
